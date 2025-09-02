@@ -1,9 +1,12 @@
 package org.example.controller;
 
+import org.example.dto.MobileProductDTO;
 import org.example.dto.ProductDTO;
 import org.example.entity.Product;
+import org.example.service.MobileApiKeyService;
 import org.example.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
@@ -20,6 +23,9 @@ public class ProductController {
     @Autowired
     private ProductService productService;
     
+    @Autowired
+    private MobileApiKeyService mobileApiKeyService;
+
     @GetMapping
     public ResponseEntity<List<ProductDTO>> getAllProducts() {
         List<Product> products = productService.getAllProducts();
@@ -108,6 +114,84 @@ public class ProductController {
             .map(product -> ProductDTO.fromProduct(product, productService))
             .collect(Collectors.toList());
         return ResponseEntity.ok(productDTOs);
+    }
+    
+    // ===== MOBILE API ENDPOINTS =====
+    
+    /**
+     * Get all products in mobile-friendly JSON format
+     * Returns: {"name": "product name", "price": "product price"}
+     */
+    @GetMapping("/mobile")
+    public ResponseEntity<?> getAllProductsMobile(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        if (!mobileApiKeyService.isValidApiKey(apiKey)) {
+            Map<String, String> error = Map.of(
+                "error", "Invalid or missing API key",
+                "message", "Access denied"
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
+        List<Product> products = productService.getAllProducts();
+        List<MobileProductDTO> mobileProducts = products.stream()
+            .map(this::convertToMobileFormat)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(mobileProducts);
+    }
+    
+    /**
+     * Get a specific product by ID in mobile-friendly JSON format
+     */
+    @GetMapping("/mobile/{id}")
+    public ResponseEntity<?> getProductByIdMobile(@PathVariable Long id, 
+                                                 @RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        if (!mobileApiKeyService.isValidApiKey(apiKey)) {
+            Map<String, String> error = Map.of(
+                "error", "Invalid or missing API key",
+                "message", "Access denied"
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
+        return productService.getProductById(id)
+                .map(this::convertToMobileFormat)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * Health check endpoint for mobile API
+     */
+    @GetMapping("/mobile/health")
+    public ResponseEntity<?> healthCheckMobile(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        if (!mobileApiKeyService.isValidApiKey(apiKey)) {
+            Map<String, String> error = Map.of(
+                "error", "Invalid or missing API key",
+                "message", "Access denied"
+            );
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
+        Map<String, String> health = Map.of(
+            "status", "healthy",
+            "message", "Mobile API is running"
+        );
+        return ResponseEntity.ok(health);
+    }
+    
+    /**
+     * Convert Product entity to mobile-friendly JSON format
+     * Returns: {"name": "product name", "price": "product price"}
+     */
+    private MobileProductDTO convertToMobileFormat(Product product) {
+        try {
+            String decryptedPrice = productService.getDecryptedPrice(product).toString();
+            return new MobileProductDTO(product.getName(), decryptedPrice);
+        } catch (Exception e) {
+            // If decryption fails, return with a default price
+            System.err.println("Failed to decrypt price for product " + product.getId() + ": " + e.getMessage());
+            return new MobileProductDTO(product.getName(), "0.00");
+        }
     }
     
     // Inner class for product request

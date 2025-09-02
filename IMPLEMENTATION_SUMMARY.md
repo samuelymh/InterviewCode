@@ -169,7 +169,7 @@ Decrypted: 999.99
 ### Database
 - **Type**: MySQL
 - **Auto-creation**: Tables created automatically
-- **Sample Data**: Admin user and sample products pre-loaded
+- **Sample Data**: Admin user pre-loaded
 
 ### Security
 - **CORS**: Enabled for all origins (development)
@@ -177,13 +177,6 @@ Decrypted: 999.99
 - **Headers**: Security headers configured
 
 ## 📈 Sample Data
-
-### Pre-loaded Products
-- Laptop ($999.99)
-- Smartphone ($599.99)
-- Headphones ($199.99)
-- Tablet ($399.99)
-- Wireless Mouse ($29.99)
 
 ### Admin User
 - Username: `admin`
